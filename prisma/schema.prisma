@@ -1,0 +1,65 @@
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Lead {
+  id               String   @id @default(uuid())
+  companyName      String
+  country          String
+  city             String
+  address          String?
+  website          String
+  industry         String
+  demandType       String
+  sealTypes        String   @default("[]") // JSON string array
+  grade            String   @default("UNMATCHED") // 'A' | 'B' | 'C' | 'D'
+  matchScore       Int      @default(50)
+  status           String   @default("scraped")
+  source           String   @default("Direct Scraper")
+  searchLanguage   String   @default("en")
+  backgroundInfo   String   @default("")
+  painPoints       String   @default("[]") // JSON string array
+  equivalentBrand  String?
+  missingFields    String   @default("[]") // JSON string array
+  contactPerson    String?
+  title            String?
+  email            String?
+  phone            String?
+  whatsappNumber   String?
+  whatsappStatus   String   @default("pending")
+  linkedinUrl      String?
+  notes            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model SystemSetting {
+  id              String   @id @default("default")
+  model           String   @default("custom-openai")
+  apiKey          String?
+  customModelName String?  @default("gpt-4o-mini")
+  customBaseUrl   String?  @default("https://api.openai.com/v1")
+  smtpServer      String?  @default("smtp.queeny-seals.com")
+  smtpUser        String?  @default("export@queeny-seals.com")
+  customPrompt    String?
+  updatedAt       DateTime @updatedAt
+}
+
+model SocialPost {
+  id            String   @id @default(uuid())
+  platform      String
+  title         String
+  content       String
+  mediaType     String   @default("image")
+  mediaUrl      String?
+  scheduledTime DateTime
+  status        String   @default("scheduled")
+  hashtags      String   @default("[]") // JSON string array
+  aiSource      String   @default("Coze Engine")
+  createdAt     DateTime @default(now())
+}

@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  queeny-workflow:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: queeny-maoyi-workflow
+    restart: always
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./prisma:/app/prisma
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
