@@ -13,6 +13,7 @@ import {
   Mail,
   MessageSquare,
   Share2,
+  TrendingUp,
   Sparkles,
   ArrowUpRight,
   Globe,
@@ -21,6 +22,18 @@ import {
   DatabaseZap,
   Inbox
 } from 'lucide-react';
+import {
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend
+} from 'recharts';
 
 const EMPTY_STATS: SystemStats = {
   totalScraped: 0,
@@ -98,6 +111,24 @@ export default function DashboardPage() {
         return 'bg-slate-800 text-slate-400 border-slate-700';
     }
   };
+
+  // Recharts data derived from live DB stats
+  const gradeData = [
+    { name: 'A级', value: stats.gradeA },
+    { name: 'B级', value: stats.gradeB },
+    { name: 'C级', value: stats.gradeC },
+    { name: 'D级', value: stats.gradeD },
+  ];
+  const GRADE_COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#f43f5e'];
+
+  const funnelData = [
+    { name: '已抓取', 数量: stats.totalScraped },
+    { name: '已补全', 数量: stats.enrichedCount },
+    { name: '开发信已发', 数量: stats.emailsSent },
+    { name: 'WA已验证', 数量: stats.waVerifiedCount },
+    { name: 'WA已发送', 数量: stats.waSentCount },
+    { name: '社媒排期', 数量: stats.socialPostsScheduled },
+  ];
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12">
@@ -177,6 +208,68 @@ export default function DashboardPage() {
           </div>
           <p className="text-xl sm:text-2xl font-bold text-purple-400 mt-2 font-mono">{stats.socialPostsScheduled}</p>
           <p className="text-[10px] text-slate-500 mt-1">LinkedIn/FB/Ins/YT</p>
+        </div>
+      </div>
+
+      {/* Charts: Pipeline Funnel + Grade Distribution */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="rounded-2xl bg-slate-900/80 p-5 border border-slate-800 space-y-2">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold text-white flex items-center space-x-2">
+              <TrendingUp className="h-4 w-4 text-cyan-400" />
+              <span>营销漏斗转化 (Pipeline Funnel)</span>
+            </h3>
+            <span className="text-[10px] text-slate-400 font-mono">实时数据</span>
+          </div>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={funnelData} layout="vertical" margin={{ top: 4, right: 16, left: 8, bottom: 4 }}>
+                <XAxis type="number" allowDecimals={false} stroke="#475569" fontSize={11} />
+                <YAxis type="category" dataKey="name" width={76} stroke="#64748b" fontSize={11} />
+                <Tooltip
+                  contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: 12, fontSize: 12 }}
+                  labelStyle={{ color: '#94a3b8' }}
+                />
+                <Legend wrapperStyle={{ fontSize: 11, color: '#94a3b8' }} />
+                <Bar dataKey="数量" fill="#22d3ee" radius={[0, 6, 6, 0]} barSize={18} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="rounded-2xl bg-slate-900/80 p-5 border border-slate-800 space-y-2">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold text-white flex items-center space-x-2">
+              <Layers className="h-4 w-4 text-emerald-400" />
+              <span>A / B / C / D 客户分级分布</span>
+            </h3>
+            <span className="text-[10px] text-slate-400 font-mono">Grade Pool</span>
+          </div>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={gradeData}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={84}
+                  innerRadius={48}
+                  paddingAngle={3}
+                  labelLine={false}
+                >
+                  {gradeData.map((_, idx) => (
+                    <Cell key={idx} fill={GRADE_COLORS[idx % GRADE_COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: 12, fontSize: 12 }}
+                />
+                <Legend wrapperStyle={{ fontSize: 11, color: '#94a3b8' }} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
         </div>
       </div>
 

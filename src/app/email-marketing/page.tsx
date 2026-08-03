@@ -11,6 +11,7 @@ import {
   Send,
   Sparkles,
   CheckCircle2,
+  Copy,
   DatabaseZap,
   Inbox
 } from 'lucide-react';
@@ -23,6 +24,7 @@ export default function EmailMarketingPage() {
   const [sentLeads, setSentLeads] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSeeding, setIsSeeding] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -88,6 +90,17 @@ export default function EmailMarketingPage() {
       targets.forEach((l) => markEmailed(l));
       setSendingBatch(false);
     }, 1500);
+  };
+
+  const handleCopyEmail = async () => {
+    if (!selectedLead) return;
+    try {
+      await navigator.clipboard.writeText(`${emailContent.subject}\n\n${emailContent.body}`);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (e) {
+      console.warn('Clipboard write failed', e);
+    }
   };
 
   return (
@@ -255,6 +268,13 @@ export default function EmailMarketingPage() {
               </span>
 
               <div className="flex items-center space-x-2">
+                <button
+                  onClick={handleCopyEmail}
+                  className="px-4 py-2 rounded-xl bg-slate-800 text-slate-200 font-medium text-xs hover:bg-slate-700 flex items-center space-x-1.5 transition-colors"
+                >
+                  <Copy className="h-4 w-4" />
+                  <span>{copied ? '已复制邮件全文' : '复制开发信'}</span>
+                </button>
                 <button
                   onClick={() => selectedLead && handleSendSingleEmail(selectedLead.id)}
                   className="px-4 py-2 rounded-xl bg-cyan-500 text-slate-950 font-bold text-xs hover:bg-cyan-400 flex items-center space-x-1.5 transition-colors"

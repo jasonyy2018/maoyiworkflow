@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import WorkflowStepper from '@/components/workflow-stepper';
 import { generateAISocialPost } from '@/lib/ai-services';
-import { fetchSocialPosts, createSocialPost, deleteSocialPost, SocialPostRecord } from '@/lib/api';
+import { fetchSocialPosts, createSocialPost, deleteSocialPost, updateSocialPost, SocialPostRecord } from '@/lib/api';
 import {
   Share2,
   Globe,
@@ -64,6 +64,17 @@ export default function SocialMediaPage() {
       setPosts((prev) => prev.filter((p) => p.id !== id));
     } catch (e) {
       console.warn('Deleting social post failed', e);
+    }
+  };
+
+  const handleCycleStatus = async (post: SocialPostRecord) => {
+    const next =
+      post.status === 'draft' ? 'scheduled' : post.status === 'scheduled' ? 'published' : 'draft';
+    try {
+      const updated = await updateSocialPost(post.id, { status: next as SocialPostRecord['status'] });
+      setPosts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+    } catch (e) {
+      console.warn('Updating social post status failed', e);
     }
   };
 
@@ -226,9 +237,19 @@ export default function SocialMediaPage() {
                 </div>
 
                 <div className="flex items-center space-x-2">
-                  <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono">
-                    Scheduled
-                  </span>
+                  <button
+                    onClick={() => handleCycleStatus(post)}
+                    title="切换状态 (草稿 → 已排期 → 已发布)"
+                    className={`px-2 py-0.5 rounded text-[10px] font-mono border transition-colors ${
+                      post.status === 'published'
+                        ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                        : post.status === 'scheduled'
+                        ? 'bg-purple-500/10 text-purple-300 border-purple-500/30'
+                        : 'bg-slate-800 text-slate-300 border-slate-700'
+                    }`}
+                  >
+                    {post.status === 'published' ? '已发布' : post.status === 'scheduled' ? '已排期' : '草稿'}
+                  </button>
                   <button
                     onClick={() => handleDeletePost(post.id)}
                     className="p-1 text-slate-500 hover:text-rose-400 transition-colors"

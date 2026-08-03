@@ -108,3 +108,15 @@ export async function deleteSocialPost(id: string): Promise<{ success: boolean }
   const res = await fetch(`/api/social-posts/${id}`, { method: 'DELETE' });
   return handle<{ success: boolean }>(res);
 }
+
+export async function updateSocialPost(
+  id: string,
+  patch: Partial<SocialPostRecord>
+): Promise<SocialPostRecord> {
+  const res = await fetch(`/api/social-posts/${id}`, {
+    method: 'PATCH',
+    headers: jsonHeaders,
+    body: JSON.stringify(patch),
+  });
+  return handle<SocialPostRecord>(res);
+}

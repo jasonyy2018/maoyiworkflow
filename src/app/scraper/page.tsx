@@ -158,6 +158,10 @@ export default function ScraperPage() {
     }
   };
 
+  const handleClearResults = () => {
+    setScrapedResults([]);
+  };
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12">
       <WorkflowStepper />
@@ -354,6 +358,16 @@ export default function ScraperPage() {
               <span>抓取结果实时预览与落盘池 ({scrapedResults.length} 家)</span>
             </h3>
             <span className="text-xs text-slate-400">已自动写入 SQLite 本地数据库</span>
+            <button
+              onClick={handleClearResults}
+              className={`ml-3 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-colors ${
+                scrapedResults.length > 0
+                  ? 'bg-slate-800 text-slate-200 hover:bg-rose-500/20 hover:text-rose-300'
+                  : 'bg-slate-900 text-slate-600'
+              }`}
+            >
+              清空本次预览
+            </button>
           </div>
 
           <div className="overflow-x-auto">

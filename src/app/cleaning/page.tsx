@@ -5,6 +5,7 @@ import WorkflowStepper from '@/components/workflow-stepper';
 import LeadModal from '@/components/lead-modal';
 import { evaluateAndGradeLead } from '@/lib/ai-services';
 import { fetchLeads, updateLead, seedLeads, LeadRecord } from '@/lib/api';
+import { exportLeadsCsv } from '@/lib/export-csv';
 import { Lead, LeadGrade } from '@/types/workflow';
 import {
   Filter,
@@ -12,6 +13,7 @@ import {
   RefreshCw,
   Sparkles,
   DatabaseZap,
+  Download,
   Inbox
 } from 'lucide-react';
 
@@ -95,6 +97,10 @@ export default function CleaningPage() {
     updateLead(updated.id, updated as unknown as Partial<LeadRecord>).catch(() => {});
   };
 
+  const handleExportCsv = () => {
+    exportLeadsCsv(filteredLeads, `queeny-clean-pool-${Date.now()}.csv`);
+  };
+
   const getGradeBadge = (grade: string) => {
     switch (grade) {
       case 'A':
@@ -137,6 +143,14 @@ export default function CleaningPage() {
               <span>{isSeeding ? '正在填充演示数据...' : '填充演示数据'}</span>
             </button>
           )}
+          <button
+            onClick={handleExportCsv}
+            disabled={filteredLeads.length === 0}
+            className="px-4 py-2.5 rounded-xl bg-slate-800 text-slate-200 font-bold text-xs hover:bg-slate-700 flex items-center space-x-2 transition-colors disabled:opacity-50"
+          >
+            <Download className="h-4 w-4" />
+            <span>导出 CSV</span>
+          </button>
           <button
             onClick={handleRunAICleaning}
             disabled={isProcessingAI || leads.length === 0}
