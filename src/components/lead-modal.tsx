@@ -65,40 +65,40 @@ export default function LeadModal({ lead, onClose, onUpdateLead }: LeadModalProp
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative w-full max-w-4xl max-h-[90vh] bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="relative w-full max-w-4xl max-h-[92vh] bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-950/60">
-          <div className="flex items-center space-x-3">
-            <div className="p-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400">
-              <Building2 className="h-6 w-6" />
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 border-b border-slate-800 bg-slate-950/60">
+          <div className="flex items-center space-x-2.5 sm:space-x-3 min-w-0">
+            <div className="p-2 sm:p-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 shrink-0">
+              <Building2 className="h-5 w-5 sm:h-6 sm:w-6" />
             </div>
-            <div>
-              <div className="flex items-center space-x-2">
-                <h3 className="text-lg font-bold text-white">{lead.companyName}</h3>
-                <span className={`px-2.5 py-0.5 rounded-full text-xs font-mono font-bold border ${getGradeBadge(lead.grade)}`}>
-                  {lead.grade}级客户 ({lead.matchScore}分)
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                <h3 className="text-base sm:text-lg font-bold text-white truncate max-w-[200px] sm:max-w-md">{lead.companyName}</h3>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-mono font-bold border ${getGradeBadge(lead.grade)}`}>
+                  {lead.grade}级 ({lead.matchScore}分)
                 </span>
               </div>
-              <p className="text-xs text-slate-400 flex items-center space-x-2 mt-0.5">
-                <MapPin className="h-3.5 w-3.5 text-slate-500" />
-                <span>{lead.country} • {lead.city}</span>
+              <p className="text-[11px] sm:text-xs text-slate-400 flex items-center space-x-1.5 sm:space-x-2 mt-0.5 truncate">
+                <MapPin className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-slate-500 shrink-0" />
+                <span className="truncate">{lead.country} • {lead.city}</span>
                 <span>|</span>
-                <span className="text-cyan-400">{lead.industry}</span>
+                <span className="text-cyan-400 truncate">{lead.industry}</span>
               </p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
+            className="p-1.5 sm:p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors shrink-0 ml-2"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex items-center space-x-2 px-6 pt-3 border-b border-slate-800/80 bg-slate-950/30">
+        <div className="flex items-center space-x-2 px-4 sm:px-6 pt-3 border-b border-slate-800/80 bg-slate-950/30 overflow-x-auto whitespace-nowrap scrollbar-none">
           <button
             onClick={() => setActiveTab('info')}
             className={`px-4 py-2 text-xs font-medium rounded-t-lg transition-colors border-b-2 ${

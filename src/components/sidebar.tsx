@@ -76,7 +76,7 @@ export default function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="w-64 border-r border-slate-800 bg-slate-950/60 flex flex-col justify-between shrink-0 min-h-[calc(100vh-4rem)]">
+    <aside className="hidden lg:flex w-64 border-r border-slate-800 bg-slate-950/60 flex-col justify-between shrink-0 min-h-[calc(100vh-4rem)]">
       <div className="p-4 space-y-6">
         {/* Navigation Section */}
         <div className="space-y-1">
