@@ -201,6 +201,23 @@ export default function LeadModal({ lead, onClose, onUpdateLead }: LeadModalProp
 
                   <div className="space-y-2.5 text-xs">
                     <div className="flex items-center justify-between p-2 rounded-lg bg-slate-900/80">
+                      <span className="text-slate-400">官方网站 (Website)</span>
+                      {lead.website ? (
+                        <a
+                          href={lead.website.startsWith('http') ? lead.website : `https://${lead.website}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-cyan-400 hover:underline flex items-center space-x-1 font-mono text-[11px]"
+                        >
+                          <Globe className="h-3 w-3" />
+                          <span>{lead.website.replace(/^https?:\/\//, '')}</span>
+                        </a>
+                      ) : (
+                        <span className="text-slate-500">未接入</span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between p-2 rounded-lg bg-slate-900/80">
                       <span className="text-slate-400">决策人姓名</span>
                       <span className="font-semibold text-white">{lead.contactPerson || '未补全'}</span>
                     </div>

@@ -1,50 +1,11 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { INITIAL_LEADS } from '@/lib/data';
 
 export async function GET() {
   try {
-    let dbLeads = await prisma.lead.findMany({
+    const dbLeads = await prisma.lead.findMany({
       orderBy: { createdAt: 'desc' },
     });
-
-    // Seed initial leads into SQLite if database is empty
-    if (dbLeads.length === 0) {
-      for (const lead of INITIAL_LEADS) {
-        await prisma.lead.create({
-          data: {
-            id: lead.id,
-            companyName: lead.companyName,
-            country: lead.country,
-            city: lead.city,
-            address: lead.address,
-            website: lead.website,
-            industry: lead.industry,
-            demandType: lead.demandType,
-            sealTypes: JSON.stringify(lead.sealTypes),
-            grade: lead.grade,
-            matchScore: lead.matchScore,
-            status: lead.status,
-            source: lead.source,
-            searchLanguage: lead.searchLanguage,
-            backgroundInfo: lead.backgroundInfo,
-            painPoints: JSON.stringify(lead.painPoints),
-            equivalentBrand: lead.equivalentBrand,
-            missingFields: JSON.stringify(lead.missingFields),
-            contactPerson: lead.contactPerson,
-            title: lead.title,
-            email: lead.email,
-            phone: lead.phone,
-            whatsappNumber: lead.whatsappNumber,
-            whatsappStatus: lead.whatsappStatus,
-            linkedinUrl: lead.linkedinUrl,
-          },
-        });
-      }
-      dbLeads = await prisma.lead.findMany({
-        orderBy: { createdAt: 'desc' },
-      });
-    }
 
     const formatted = dbLeads.map((l) => ({
       ...l,
@@ -105,5 +66,16 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('Error creating lead in SQLite:', error);
     return NextResponse.json({ error: 'Failed to save lead' }, { status: 500 });
+  }
+}
+
+export async function DELETE() {
+  try {
+    await prisma.lead.deleteMany({});
+    await prisma.socialPost.deleteMany({});
+    return NextResponse.json({ success: true, message: 'All demo leads and social posts cleared from SQLite database' });
+  } catch (error) {
+    console.error('Error clearing SQLite database:', error);
+    return NextResponse.json({ error: 'Failed to clear database' }, { status: 500 });
   }
 }

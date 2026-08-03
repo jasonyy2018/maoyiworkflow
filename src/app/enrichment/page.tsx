@@ -1,34 +1,66 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import WorkflowStepper from '@/components/workflow-stepper';
 import LeadModal from '@/components/lead-modal';
-import { INITIAL_LEADS } from '@/lib/data';
 import { enrichLeadInfo } from '@/lib/ai-services';
+import { fetchLeads, updateLead, seedLeads, LeadRecord } from '@/lib/api';
 import { Lead } from '@/types/workflow';
 import {
   UserCheck,
   Sparkles,
-  CheckCircle2,
   AlertCircle,
-  Building2,
-  Mail,
-  Phone,
   Globe,
-  RefreshCw,
-  Search
+  DatabaseZap,
+  Inbox
 } from 'lucide-react';
 
 export default function EnrichmentPage() {
-  const [leads, setLeads] = useState<Lead[]>(INITIAL_LEADS);
+  const [leads, setLeads] = useState<Lead[]>([]);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [isBatchEnriching, setIsBatchEnriching] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSeeding, setIsSeeding] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const data = await fetchLeads();
+        if (mounted) setLeads(data as unknown as Lead[]);
+      } catch (e) {
+        console.warn('Could not load leads from DB', e);
+      } finally {
+        if (mounted) setIsLoading(false);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const handleSeedDemo = async () => {
+    setIsSeeding(true);
+    try {
+      const data = await seedLeads();
+      if (data.leads && data.leads.length > 0) {
+        setLeads(data.leads as unknown as Lead[]);
+      }
+    } catch (e) {
+      console.warn('Seeding failed', e);
+    } finally {
+      setIsSeeding(false);
+    }
+  };
 
   const handleBatchEnrich = () => {
     setIsBatchEnriching(true);
     setTimeout(() => {
       const enrichedAll = leads.map((lead) => enrichLeadInfo(lead));
       setLeads(enrichedAll);
+      enrichedAll.forEach((l) =>
+        updateLead(l.id, l as unknown as Partial<LeadRecord>).catch(() => {})
+      );
       setIsBatchEnriching(false);
     }, 1200);
   };
@@ -36,6 +68,7 @@ export default function EnrichmentPage() {
   const handleUpdateLead = (updated: Lead) => {
     setLeads((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
     setSelectedLead(updated);
+    updateLead(updated.id, updated as unknown as Partial<LeadRecord>).catch(() => {});
   };
 
   const getCompletenessScore = (lead: Lead) => {
@@ -65,14 +98,26 @@ export default function EnrichmentPage() {
           </p>
         </div>
 
-        <button
-          onClick={handleBatchEnrich}
-          disabled={isBatchEnriching}
-          className="px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 font-bold text-xs hover:from-cyan-400 hover:to-blue-500 flex items-center space-x-2 transition-all shadow-lg shadow-cyan-500/20"
-        >
-          <Sparkles className={`h-4 w-4 ${isBatchEnriching ? 'animate-spin' : ''}`} />
-          <span>一键 AI 批量补全所有缺失信息</span>
-        </button>
+        <div className="flex items-center space-x-2">
+          {leads.length === 0 && !isLoading && (
+            <button
+              onClick={handleSeedDemo}
+              disabled={isSeeding}
+              className="px-4 py-2.5 rounded-xl bg-slate-800 text-slate-200 font-bold text-xs hover:bg-slate-700 flex items-center space-x-2 transition-colors"
+            >
+              <DatabaseZap className={`h-4 w-4 ${isSeeding ? 'animate-spin' : ''}`} />
+              <span>{isSeeding ? '正在填充演示数据...' : '填充演示数据'}</span>
+            </button>
+          )}
+          <button
+            onClick={handleBatchEnrich}
+            disabled={isBatchEnriching || leads.length === 0}
+            className="px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 font-bold text-xs hover:from-cyan-400 hover:to-blue-500 flex items-center space-x-2 transition-all shadow-lg shadow-cyan-500/20 disabled:opacity-50"
+          >
+            <Sparkles className={`h-4 w-4 ${isBatchEnriching ? 'animate-spin' : ''}`} />
+            <span>一键 AI 批量补全所有缺失信息</span>
+          </button>
+        </div>
       </div>
 
       {/* Leads Contact List */}
@@ -84,104 +129,111 @@ export default function EnrichmentPage() {
           </span>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-slate-300">
-            <thead className="bg-slate-950 text-slate-400 uppercase tracking-wider font-semibold text-[10px]">
-              <tr>
-                <th className="px-6 py-3.5">企业名称 / 地区</th>
-                <th className="px-6 py-3.5">信息完整度</th>
-                <th className="px-6 py-3.5">关键决策人 / 职位</th>
-                <th className="px-6 py-3.5">电子邮箱</th>
-                <th className="px-6 py-3.5">电话 / WhatsApp</th>
-                <th className="px-6 py-3.5">LinkedIn Profile</th>
-                <th className="px-6 py-3.5 text-right">操作</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800">
-              {leads.map((lead) => {
-                const score = getCompletenessScore(lead);
+        {!isLoading && leads.length === 0 ? (
+          <div className="p-12 text-center space-y-2">
+            <Inbox className="h-8 w-8 text-slate-600 mx-auto" />
+            <p className="text-xs text-slate-500">暂无客户数据，请先抓取或填充演示数据。</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs text-slate-300">
+              <thead className="bg-slate-950 text-slate-400 uppercase tracking-wider font-semibold text-[10px]">
+                <tr>
+                  <th className="px-6 py-3.5">企业名称 / 地区</th>
+                  <th className="px-6 py-3.5">信息完整度</th>
+                  <th className="px-6 py-3.5">关键决策人 / 职位</th>
+                  <th className="px-6 py-3.5">电子邮箱</th>
+                  <th className="px-6 py-3.5">电话 / WhatsApp</th>
+                  <th className="px-6 py-3.5">LinkedIn Profile</th>
+                  <th className="px-6 py-3.5 text-right">操作</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800">
+                {leads.map((lead) => {
+                  const score = getCompletenessScore(lead);
 
-                return (
-                  <tr key={lead.id} className="hover:bg-slate-800/40 transition-colors">
-                    <td className="px-6 py-4">
-                      <p className="font-bold text-white">{lead.companyName}</p>
-                      <p className="text-[10px] text-slate-400">{lead.country} • {lead.city}</p>
-                    </td>
+                  return (
+                    <tr key={lead.id} className="hover:bg-slate-800/40 transition-colors">
+                      <td className="px-6 py-4">
+                        <p className="font-bold text-white">{lead.companyName}</p>
+                        <p className="text-[10px] text-slate-400">{lead.country} • {lead.city}</p>
+                      </td>
 
-                    <td className="px-6 py-4">
-                      <div className="flex items-center space-x-2">
-                        <div className="w-20 bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-800">
-                          <div
-                            className={`h-full rounded-full ${
-                              score >= 80 ? 'bg-emerald-400' : score >= 50 ? 'bg-amber-400' : 'bg-rose-400'
-                            }`}
-                            style={{ width: `${score}%` }}
-                          />
+                      <td className="px-6 py-4">
+                        <div className="flex items-center space-x-2">
+                          <div className="w-20 bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-800">
+                            <div
+                              className={`h-full rounded-full ${
+                                score >= 80 ? 'bg-emerald-400' : score >= 50 ? 'bg-amber-400' : 'bg-rose-400'
+                              }`}
+                              style={{ width: `${score}%` }}
+                            />
+                          </div>
+                          <span className="font-mono text-xs text-slate-300 font-bold">{score}%</span>
                         </div>
-                        <span className="font-mono text-xs text-slate-300 font-bold">{score}%</span>
-                      </div>
-                    </td>
+                      </td>
 
-                    <td className="px-6 py-4">
-                      {lead.contactPerson ? (
-                        <div>
-                          <p className="font-semibold text-white">{lead.contactPerson}</p>
-                          <p className="text-[10px] text-cyan-300">{lead.title}</p>
-                        </div>
-                      ) : (
-                        <span className="text-rose-400 flex items-center space-x-1">
-                          <AlertCircle className="h-3.5 w-3.5" />
-                          <span>缺失决策人</span>
-                        </span>
-                      )}
-                    </td>
+                      <td className="px-6 py-4">
+                        {lead.contactPerson ? (
+                          <div>
+                            <p className="font-semibold text-white">{lead.contactPerson}</p>
+                            <p className="text-[10px] text-cyan-300">{lead.title}</p>
+                          </div>
+                        ) : (
+                          <span className="text-rose-400 flex items-center space-x-1">
+                            <AlertCircle className="h-3.5 w-3.5" />
+                            <span>缺失决策人</span>
+                          </span>
+                        )}
+                      </td>
 
-                    <td className="px-6 py-4 font-mono">
-                      {lead.email ? (
-                        <span className="text-slate-200">{lead.email}</span>
-                      ) : (
-                        <span className="text-rose-400">待补全</span>
-                      )}
-                    </td>
+                      <td className="px-6 py-4 font-mono">
+                        {lead.email ? (
+                          <span className="text-slate-200">{lead.email}</span>
+                        ) : (
+                          <span className="text-rose-400">待补全</span>
+                        )}
+                      </td>
 
-                    <td className="px-6 py-4 font-mono">
-                      {lead.whatsappNumber || lead.phone ? (
-                        <span className="text-emerald-400">{lead.whatsappNumber || lead.phone}</span>
-                      ) : (
-                        <span className="text-rose-400">待补全</span>
-                      )}
-                    </td>
+                      <td className="px-6 py-4 font-mono">
+                        {lead.whatsappNumber || lead.phone ? (
+                          <span className="text-emerald-400">{lead.whatsappNumber || lead.phone}</span>
+                        ) : (
+                          <span className="text-rose-400">待补全</span>
+                        )}
+                      </td>
 
-                    <td className="px-6 py-4">
-                      {lead.linkedinUrl ? (
-                        <a
-                          href={lead.linkedinUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-blue-400 hover:underline inline-flex items-center space-x-1"
+                      <td className="px-6 py-4">
+                        {lead.linkedinUrl ? (
+                          <a
+                            href={lead.linkedinUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-blue-400 hover:underline inline-flex items-center space-x-1"
+                          >
+                            <Globe className="h-3.5 w-3.5" />
+                            <span>Profile</span>
+                          </a>
+                        ) : (
+                          <span className="text-slate-500">未设置</span>
+                        )}
+                      </td>
+
+                      <td className="px-6 py-4 text-right">
+                        <button
+                          onClick={() => setSelectedLead(lead)}
+                          className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-cyan-500 hover:text-slate-950 text-slate-200 font-medium transition-colors"
                         >
-                          <Globe className="h-3.5 w-3.5" />
-                          <span>Profile</span>
-                        </a>
-                      ) : (
-                        <span className="text-slate-500">未设置</span>
-                      )}
-                    </td>
-
-                    <td className="px-6 py-4 text-right">
-                      <button
-                        onClick={() => setSelectedLead(lead)}
-                        className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-cyan-500 hover:text-slate-950 text-slate-200 font-medium transition-colors"
-                      >
-                        单条AI补齐
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                          单条AI补齐
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       <LeadModal lead={selectedLead} onClose={() => setSelectedLead(null)} onUpdateLead={handleUpdateLead} />

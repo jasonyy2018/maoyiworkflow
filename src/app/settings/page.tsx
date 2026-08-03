@@ -43,6 +43,7 @@ export default function SettingsPage() {
           if (data.apiKey) setApiKey(data.apiKey);
           if (data.customModelName) setCustomModelName(data.customModelName);
           if (data.customBaseUrl) setCustomBaseUrl(data.customBaseUrl);
+          if (data.gmapkdevUrl) setGmapkdevUrl(data.gmapkdevUrl);
           if (data.smtpServer) setSmtpServer(data.smtpServer);
           if (data.smtpUser) setSmtpUser(data.smtpUser);
           if (data.customPrompt) setCustomPrompt(data.customPrompt);
@@ -60,6 +61,7 @@ export default function SettingsPage() {
           if (parsed.apiKey) setApiKey(parsed.apiKey);
           if (parsed.customModelName) setCustomModelName(parsed.customModelName);
           if (parsed.customBaseUrl) setCustomBaseUrl(parsed.customBaseUrl);
+          if (parsed.gmapkdevUrl) setGmapkdevUrl(parsed.gmapkdevUrl);
           if (parsed.smtpServer) setSmtpServer(parsed.smtpServer);
           if (parsed.smtpUser) setSmtpUser(parsed.smtpUser);
           if (parsed.customPrompt) setCustomPrompt(parsed.customPrompt);
@@ -78,6 +80,7 @@ export default function SettingsPage() {
       apiKey,
       customModelName,
       customBaseUrl,
+      gmapkdevUrl,
       smtpServer,
       smtpUser,
       customPrompt,
@@ -229,7 +232,7 @@ export default function SettingsPage() {
               className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-cyan-300 font-mono focus:outline-none focus:border-cyan-500"
             />
             <p className="text-[11px] text-slate-400 leading-relaxed">
-              系统抓取模块 (`/scraper`) 将自动通过此 API 调用项目 <code className="text-cyan-300">C:\Users\jason\Documents\projects\gmapkdev</code> 的 Google Maps & Gemini AI 全网真实抓取引擎。
+              系统抓取模块 (<code className="text-cyan-300">/scraper</code>) 将通过此 HTTP REST API 网络接口（如 <code className="text-cyan-300">http://localhost:3001/api/leads/search</code> 或线上域名 <code className="text-cyan-300">https://your-domain.com/api/leads/search</code>）远程调用 Google Maps & Gemini AI 拓客引擎。
             </p>
           </div>
         </div>

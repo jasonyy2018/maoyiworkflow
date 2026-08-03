@@ -44,6 +44,7 @@ model SystemSetting {
   apiKey          String?
   customModelName String?  @default("gpt-4o-mini")
   customBaseUrl   String?  @default("https://api.openai.com/v1")
+  gmapkdevUrl     String?  @default("http://localhost:3001/api/leads/search")
   smtpServer      String?  @default("smtp.queeny-seals.com")
   smtpUser        String?  @default("export@queeny-seals.com")
   customPrompt    String?

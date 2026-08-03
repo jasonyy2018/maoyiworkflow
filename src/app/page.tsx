@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import WorkflowStepper from '@/components/workflow-stepper';
 import LeadModal from '@/components/lead-modal';
-import { INITIAL_LEADS, INITIAL_SYSTEM_STATS } from '@/lib/data';
-import { Lead } from '@/types/workflow';
+import { fetchLeads, fetchStats, updateLead, seedLeads, LeadRecord } from '@/lib/api';
+import { Lead, SystemStats } from '@/types/workflow';
 import {
   Search,
   Filter,
@@ -13,24 +13,75 @@ import {
   Mail,
   MessageSquare,
   Share2,
-  TrendingUp,
   Sparkles,
-  ShieldCheck,
-  Building2,
   ArrowUpRight,
   Globe,
   Layers,
-  ChevronRight
+  ChevronRight,
+  DatabaseZap,
+  Inbox
 } from 'lucide-react';
 
+const EMPTY_STATS: SystemStats = {
+  totalScraped: 0,
+  gradeA: 0,
+  gradeB: 0,
+  gradeC: 0,
+  gradeD: 0,
+  enrichedCount: 0,
+  emailsSent: 0,
+  waVerifiedCount: 0,
+  waSentCount: 0,
+  socialPostsScheduled: 0,
+};
+
 export default function DashboardPage() {
-  const [leads, setLeads] = useState<Lead[]>(INITIAL_LEADS);
+  const [leads, setLeads] = useState<Lead[]>([]);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
-  const stats = INITIAL_SYSTEM_STATS;
+  const [stats, setStats] = useState<SystemStats>(EMPTY_STATS);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSeeding, setIsSeeding] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const [data, statsData] = await Promise.all([fetchLeads(), fetchStats()]);
+        if (mounted) {
+          setLeads(data as unknown as Lead[]);
+          setStats(statsData);
+        }
+      } catch (e) {
+        console.warn('Could not load dashboard data', e);
+      } finally {
+        if (mounted) setIsLoading(false);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const handleSeedDemo = async () => {
+    setIsSeeding(true);
+    try {
+      const data = await seedLeads();
+      if (data.leads && data.leads.length > 0) {
+        setLeads(data.leads as unknown as Lead[]);
+      }
+      const statsData = await fetchStats();
+      setStats(statsData);
+    } catch (e) {
+      console.warn('Seeding failed', e);
+    } finally {
+      setIsSeeding(false);
+    }
+  };
 
   const handleUpdateLead = (updated: Lead) => {
     setLeads((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
     setSelectedLead(updated);
+    updateLead(updated.id, updated as unknown as Partial<LeadRecord>).catch(() => {});
   };
 
   const getGradeBadge = (grade: string) => {
@@ -189,6 +240,16 @@ export default function DashboardPage() {
           </div>
 
           <div className="space-y-2">
+            {leads.length === 0 && !isLoading && (
+              <button
+                onClick={handleSeedDemo}
+                disabled={isSeeding}
+                className="w-full flex items-center justify-between px-3.5 py-2 rounded-xl bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold text-xs hover:bg-cyan-500/30 transition-colors"
+              >
+                <span>{isSeeding ? '正在填充演示数据...' : '快速填充演示潜客数据'}</span>
+                <DatabaseZap className={`h-4 w-4 ${isSeeding ? 'animate-spin' : ''}`} />
+              </button>
+            )}
             <Link
               href="/scraper"
               className="w-full flex items-center justify-between px-3.5 py-2 rounded-xl bg-cyan-500 text-slate-950 font-bold text-xs hover:bg-cyan-400 transition-colors"
@@ -220,81 +281,92 @@ export default function DashboardPage() {
           </Link>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-slate-300">
-            <thead className="bg-slate-950 text-slate-400 uppercase tracking-wider font-semibold text-[10px]">
-              <tr>
-                <th className="px-6 py-3.5">企业名称 / 地区</th>
-                <th className="px-6 py-3.5">目标行业 & 需求</th>
-                <th className="px-6 py-3.5">对标型号</th>
-                <th className="px-6 py-3.5">AI 分级 & 匹配度</th>
-                <th className="px-6 py-3.5">决策人 / 联系方式</th>
-                <th className="px-6 py-3.5">WhatsApp</th>
-                <th className="px-6 py-3.5 text-right">操作</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/80">
-              {leads.map((lead) => (
-                <tr key={lead.id} className="hover:bg-slate-800/40 transition-colors">
-                  <td className="px-6 py-4">
-                    <button
-                      onClick={() => setSelectedLead(lead)}
-                      className="font-bold text-white hover:text-cyan-400 text-left block max-w-xs truncate"
-                    >
-                      {lead.companyName}
-                    </button>
-                    <span className="text-[10px] text-slate-400 mt-0.5 block">
-                      {lead.country} • {lead.city}
-                    </span>
-                  </td>
-
-                  <td className="px-6 py-4">
-                    <span className="px-2 py-0.5 rounded bg-slate-800 text-cyan-300 font-medium">
-                      {lead.industry}
-                    </span>
-                    <span className="text-[10px] text-slate-400 block mt-1">{lead.demandType}</span>
-                  </td>
-
-                  <td className="px-6 py-4">
-                    <span className="font-mono text-amber-400">{lead.equivalentBrand || '通用型号'}</span>
-                  </td>
-
-                  <td className="px-6 py-4">
-                    <span className={`px-2.5 py-0.5 rounded-full font-mono font-bold border ${getGradeBadge(lead.grade)}`}>
-                      {lead.grade}级 ({lead.matchScore}分)
-                    </span>
-                  </td>
-
-                  <td className="px-6 py-4">
-                    <p className="font-medium text-slate-200">{lead.contactPerson || '待补全'}</p>
-                    <p className="text-[10px] text-slate-400 font-mono">{lead.email || '无邮箱'}</p>
-                  </td>
-
-                  <td className="px-6 py-4">
-                    <span
-                      className={`px-2 py-0.5 rounded text-[10px] font-mono ${
-                        lead.whatsappStatus === 'verified'
-                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                          : 'bg-slate-800 text-slate-400'
-                      }`}
-                    >
-                      {lead.whatsappStatus === 'verified' ? '已验证 WA' : '待验证'}
-                    </span>
-                  </td>
-
-                  <td className="px-6 py-4 text-right">
-                    <button
-                      onClick={() => setSelectedLead(lead)}
-                      className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-200 hover:bg-cyan-500 hover:text-slate-950 font-medium transition-colors"
-                    >
-                      查看与营销
-                    </button>
-                  </td>
+        {isLoading ? (
+          <div className="text-center text-xs text-slate-500 py-12">正在从数据库加载潜客数据...</div>
+        ) : leads.length === 0 ? (
+          <div className="p-12 text-center space-y-2">
+            <Inbox className="h-8 w-8 text-slate-600 mx-auto" />
+            <p className="text-xs text-slate-500">
+              数据库暂无潜客数据。请前往「数据抓取」模块开始挖掘，或先填充演示数据体验完整流程。
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs text-slate-300">
+              <thead className="bg-slate-950 text-slate-400 uppercase tracking-wider font-semibold text-[10px]">
+                <tr>
+                  <th className="px-6 py-3.5">企业名称 / 地区</th>
+                  <th className="px-6 py-3.5">目标行业 & 需求</th>
+                  <th className="px-6 py-3.5">对标型号</th>
+                  <th className="px-6 py-3.5">AI 分级 & 匹配度</th>
+                  <th className="px-6 py-3.5">决策人 / 联系方式</th>
+                  <th className="px-6 py-3.5">WhatsApp</th>
+                  <th className="px-6 py-3.5 text-right">操作</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-slate-800/80">
+                {leads.map((lead) => (
+                  <tr key={lead.id} className="hover:bg-slate-800/40 transition-colors">
+                    <td className="px-6 py-4">
+                      <button
+                        onClick={() => setSelectedLead(lead)}
+                        className="font-bold text-white hover:text-cyan-400 text-left block max-w-xs truncate"
+                      >
+                        {lead.companyName}
+                      </button>
+                      <span className="text-[10px] text-slate-400 mt-0.5 block">
+                        {lead.country} • {lead.city}
+                      </span>
+                    </td>
+
+                    <td className="px-6 py-4">
+                      <span className="px-2 py-0.5 rounded bg-slate-800 text-cyan-300 font-medium">
+                        {lead.industry}
+                      </span>
+                      <span className="text-[10px] text-slate-400 block mt-1">{lead.demandType}</span>
+                    </td>
+
+                    <td className="px-6 py-4">
+                      <span className="font-mono text-amber-400">{lead.equivalentBrand || '通用型号'}</span>
+                    </td>
+
+                    <td className="px-6 py-4">
+                      <span className={`px-2.5 py-0.5 rounded-full font-mono font-bold border ${getGradeBadge(lead.grade)}`}>
+                        {lead.grade}级 ({lead.matchScore}分)
+                      </span>
+                    </td>
+
+                    <td className="px-6 py-4">
+                      <p className="font-medium text-slate-200">{lead.contactPerson || '待补全'}</p>
+                      <p className="text-[10px] text-slate-400 font-mono">{lead.email || '无邮箱'}</p>
+                    </td>
+
+                    <td className="px-6 py-4">
+                      <span
+                        className={`px-2 py-0.5 rounded text-[10px] font-mono ${
+                          lead.whatsappStatus === 'verified'
+                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                            : 'bg-slate-800 text-slate-400'
+                        }`}
+                      >
+                        {lead.whatsappStatus === 'verified' ? '已验证 WA' : '待验证'}
+                      </span>
+                    </td>
+
+                    <td className="px-6 py-4 text-right">
+                      <button
+                        onClick={() => setSelectedLead(lead)}
+                        className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-200 hover:bg-cyan-500 hover:text-slate-950 font-medium transition-colors"
+                      >
+                        查看与营销
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Lead Modal Drawer */}
