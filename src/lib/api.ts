@@ -1,6 +1,6 @@
 'use client';
 
-import { Lead, SocialPost, SystemStats } from '@/types/workflow';
+import { SocialPost, SystemStats } from '@/types/workflow';
 
 // SQLite/Prisma returns JSON-array fields as strings; the API formats them for the client.
 export interface LeadRecord {
@@ -119,4 +119,18 @@ export async function updateSocialPost(
     body: JSON.stringify(patch),
   });
   return handle<SocialPostRecord>(res);
+}
+
+// Calls the /api/ai route (OpenAI-compatible). Returns { configured:false } when no
+// API key is set; otherwise { configured:true, usedAi, ... } for the requested task.
+export async function aiRun(body: Record<string, unknown>): Promise<any> {
+  const res = await fetch('/api/ai', {
+    method: 'POST',
+    headers: jsonHeaders,
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    throw new Error('AI 请求失败');
+  }
+  return res.json();
 }

@@ -21,7 +21,7 @@ export async function PATCH(request: Request, ctx: RouteCtx) {
     const { id } = await ctx.params;
     const body = await request.json();
 
-    const data: Record<string, unknown> = {};
+    const data: any = {};
 
     // Only touch fields that were actually provided in the patch.
     const scalarFields = [

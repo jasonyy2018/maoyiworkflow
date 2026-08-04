@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import WorkflowStepper from '@/components/workflow-stepper';
 import LeadModal from '@/components/lead-modal';
 import { generateColdEmailText } from '@/lib/ai-services';
-import { fetchLeads, updateLead, seedLeads, LeadRecord } from '@/lib/api';
+import { fetchLeads, updateLead, seedLeads, aiRun, LeadRecord } from '@/lib/api';
 import { Lead } from '@/types/workflow';
 import {
   Mail,
@@ -25,6 +25,9 @@ export default function EmailMarketingPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSeeding, setIsSeeding] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [aiEmail, setAiEmail] = useState<{ subject: string; body: string } | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiEnabled, setAiEnabled] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -46,6 +49,41 @@ export default function EmailMarketingPage() {
     };
   }, []);
 
+  // Fetch 1:1 personalized email from the configured OpenAI-compatible API.
+  // Falls back to the built-in template when no API key is set or the call fails.
+  useEffect(() => {
+    if (!selectedLead) {
+      setAiEmail(null);
+      setAiEnabled(false);
+      return;
+    }
+    let cancelled = false;
+    setAiLoading(true);
+    aiRun({ task: 'email', lead: selectedLead, language: emailLanguage })
+      .then((r) => {
+        if (cancelled) return;
+        setAiEnabled(r?.configured === true);
+        if (r?.configured === true && r?.usedAi && r?.subject && r?.body) {
+          setAiEmail({ subject: r.subject, body: r.body });
+        } else {
+          setAiEmail(null);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setAiEnabled(false);
+          setAiEmail(null);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setAiLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedLead?.id, emailLanguage]);
+
   const handleSeedDemo = async () => {
     setIsSeeding(true);
     try {
@@ -62,7 +100,7 @@ export default function EmailMarketingPage() {
   };
 
   const emailContent = selectedLead
-    ? generateColdEmailText(selectedLead, emailLanguage)
+    ? aiEmail || generateColdEmailText(selectedLead, emailLanguage)
     : {
         subject: '暂无活动开发信 (请先在抓取模块新增潜客)',
         body: '目前潜客池为空。请前往“模块一：数据抓取”添加潜客后即可在此处生成 1对1 精准开发信。'
@@ -209,6 +247,17 @@ export default function EmailMarketingPage() {
             <div className="flex items-center space-x-2">
               <Sparkles className="h-4 w-4 text-cyan-400" />
               <span className="text-xs font-semibold text-white">AI 开发信生成引擎</span>
+              <span
+                className={`px-2 py-0.5 rounded text-[10px] font-mono border ${
+                  aiLoading
+                    ? 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30'
+                    : aiEnabled
+                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                    : 'bg-slate-800 text-slate-400 border-slate-700'
+                }`}
+              >
+                {aiLoading ? 'AI 生成中...' : aiEnabled ? 'AI 引擎已接入' : '内置模板'}
+              </span>
             </div>
 
             <div className="flex items-center space-x-2">

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import WorkflowStepper from '@/components/workflow-stepper';
 import { validateWhatsAppNumber, generateWhatsAppMessage } from '@/lib/ai-services';
-import { fetchLeads, updateLead, seedLeads, LeadRecord } from '@/lib/api';
+import { fetchLeads, updateLead, seedLeads, aiRun, LeadRecord } from '@/lib/api';
 import { Lead } from '@/types/workflow';
 import {
   MessageSquare,
@@ -21,6 +21,9 @@ export default function WhatsAppPage() {
   const [sentWaIds, setSentWaIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSeeding, setIsSeeding] = useState(false);
+  const [aiWa, setAiWa] = useState<string | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiEnabled, setAiEnabled] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -57,8 +60,39 @@ export default function WhatsAppPage() {
     }
   };
 
+  // Generate the 1:1 WhatsApp opener with the configured AI API, falling back to
+  // the built-in template when no API key is set or the call fails.
+  useEffect(() => {
+    if (!selectedLead) {
+      setAiWa(null);
+      setAiEnabled(false);
+      return;
+    }
+    let cancelled = false;
+    setAiLoading(true);
+    aiRun({ task: 'whatsapp', lead: selectedLead })
+      .then((r) => {
+        if (cancelled) return;
+        setAiEnabled(r?.configured === true);
+        setAiWa(r?.configured === true && r?.usedAi && r?.content ? r.content : null);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setAiEnabled(false);
+          setAiWa(null);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setAiLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedLead?.id]);
+
   const waScript = selectedLead
-    ? generateWhatsAppMessage(selectedLead)
+    ? aiWa || generateWhatsAppMessage(selectedLead)
     : '暂无活动 WhatsApp 消息 (请先在抓取模块添加潜客)';
 
   const handleValidateAllNumbers = () => {
@@ -225,6 +259,17 @@ export default function WhatsAppPage() {
               </div>
               <span className="text-xs font-mono text-emerald-400">
                 {selectedLead?.whatsappNumber || selectedLead?.phone || '未接入'}
+              </span>
+              <span
+                className={`px-2 py-0.5 rounded text-[10px] font-mono border ${
+                  aiLoading
+                    ? 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30'
+                    : aiEnabled
+                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                    : 'bg-slate-800 text-slate-400 border-slate-700'
+                }`}
+              >
+                {aiLoading ? 'AI 生成中...' : aiEnabled ? 'AI 引擎已接入' : '内置模板'}
               </span>
             </div>
 

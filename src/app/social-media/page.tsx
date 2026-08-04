@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import WorkflowStepper from '@/components/workflow-stepper';
 import { generateAISocialPost } from '@/lib/ai-services';
-import { fetchSocialPosts, createSocialPost, deleteSocialPost, updateSocialPost, SocialPostRecord } from '@/lib/api';
+import { fetchSocialPosts, createSocialPost, deleteSocialPost, updateSocialPost, aiRun, SocialPostRecord } from '@/lib/api';
 import {
   Share2,
   Globe,
@@ -24,6 +24,7 @@ export default function SocialMediaPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [newTopicInput, setNewTopicInput] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [aiEnabled, setAiEnabled] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -47,6 +48,18 @@ export default function SocialMediaPage() {
     const topic = newTopicInput.trim() || 'Burgmann & John Crane 1:1 Replacement Cartridge Seals for Petrochemical Pumps';
     const generated = generateAISocialPost(selectedPlatform, topic) as SocialPostRecord;
     generated.aiSource = engineSource;
+
+    // Prefer real-AI copy when the OpenAI-compatible API is configured.
+    try {
+      const r = await aiRun({ task: 'social', lead: {}, platform: selectedPlatform, topic });
+      setAiEnabled(r?.configured === true);
+      if (r?.configured === true && r?.usedAi && r?.title && r?.content) {
+        generated.title = r.title;
+        generated.content = r.content;
+      }
+    } catch (e) {
+      // keep the built-in template
+    }
 
     try {
       const saved = await createSocialPost(generated);
@@ -135,6 +148,15 @@ export default function SocialMediaPage() {
           <h3 className="text-sm font-bold text-white flex items-center space-x-2">
             <Sparkles className="h-4 w-4 text-cyan-400" />
             <span>AI 文案与营销计划生成器 (Coze / 飞书插件模式)</span>
+            <span
+              className={`px-2 py-0.5 rounded text-[10px] font-mono border ${
+                aiEnabled
+                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                  : 'bg-slate-800 text-slate-400 border-slate-700'
+              }`}
+            >
+              {aiEnabled ? 'AI 引擎已接入' : '内置模板'}
+            </span>
           </h3>
 
           {/* Platform Selector */}

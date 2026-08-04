@@ -10,12 +10,9 @@ import {
   Globe,
   Sparkles,
   Play,
-  CheckCircle2,
   Clock,
   Plus,
   Trash2,
-  ArrowRight,
-  ShieldCheck,
   Building2
 } from 'lucide-react';
 

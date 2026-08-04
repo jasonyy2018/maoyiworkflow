@@ -1,23 +1,20 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Lead } from '@/types/workflow';
 import { generateColdEmailText, generateWhatsAppMessage, enrichLeadInfo } from '@/lib/ai-services';
+import { aiRun } from '@/lib/api';
 import {
   X,
   Building2,
   Globe,
   MapPin,
   Mail,
-  Phone,
   MessageSquare,
   ShieldCheck,
-  Zap,
   Sparkles,
-  CheckCircle2,
   AlertTriangle,
   Send,
-  FileText,
   Copy,
   Check
 } from 'lucide-react';
@@ -32,11 +29,56 @@ export default function LeadModal({ lead, onClose, onUpdateLead }: LeadModalProp
   const [activeTab, setActiveTab] = useState<'info' | 'email' | 'whatsapp'>('info');
   const [emailLang, setEmailLang] = useState<'en' | 'ru'>('ru');
   const [copied, setCopied] = useState(false);
+  const [aiEmail, setAiEmail] = useState<{ subject: string; body: string } | null>(null);
+  const [aiWa, setAiWa] = useState<string | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiEnabled, setAiEnabled] = useState(false);
+
+  // Fetch AI-generated onboarding copy for this lead (email + WhatsApp), falling
+  // back to the built-in templates when no API key is configured.
+  useEffect(() => {
+    if (!lead) {
+      setAiEmail(null);
+      setAiWa(null);
+      setAiEnabled(false);
+      return;
+    }
+    let cancelled = false;
+    setAiLoading(true);
+    Promise.all([
+      aiRun({ task: 'email', lead, language: emailLang }),
+      aiRun({ task: 'whatsapp', lead }),
+    ])
+      .then(([em, wa]) => {
+        if (cancelled) return;
+        setAiEnabled(em?.configured === true || wa?.configured === true);
+        setAiEmail(
+          em?.configured === true && em?.usedAi && em?.subject && em?.body
+            ? { subject: em.subject, body: em.body }
+            : null
+        );
+        setAiWa(wa?.configured === true && wa?.usedAi && wa?.content ? wa.content : null);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setAiEmail(null);
+          setAiWa(null);
+          setAiEnabled(false);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setAiLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lead?.id, emailLang]);
 
   if (!lead) return null;
 
-  const emailData = generateColdEmailText(lead, emailLang);
-  const waMessage = generateWhatsAppMessage(lead);
+  const emailData = aiEmail || generateColdEmailText(lead, emailLang);
+  const waMessage = aiWa || generateWhatsAppMessage(lead);
 
   const handleEnrich = () => {
     const enriched = enrichLeadInfo(lead);
@@ -279,6 +321,17 @@ export default function LeadModal({ lead, onClose, onUpdateLead }: LeadModalProp
                 <div className="flex items-center space-x-2">
                   <Sparkles className="h-4 w-4 text-cyan-400" />
                   <span className="text-xs font-semibold text-slate-300">开发信语言切换</span>
+                  <span
+                    className={`px-2 py-0.5 rounded text-[10px] font-mono border ${
+                      aiLoading
+                        ? 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30'
+                        : aiEnabled
+                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                        : 'bg-slate-800 text-slate-400 border-slate-700'
+                    }`}
+                  >
+                    {aiLoading ? 'AI 生成中...' : aiEnabled ? 'AI 引擎已接入' : '内置模板'}
+                  </span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <button

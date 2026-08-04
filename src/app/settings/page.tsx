@@ -4,15 +4,11 @@ import React, { useState, useEffect } from 'react';
 import WorkflowStepper from '@/components/workflow-stepper';
 import {
   Settings,
-  Key,
   Globe,
   Mail,
-  MessageSquare,
-  Sparkles,
   Save,
   CheckCircle2,
   Cpu,
-  Layers,
   Terminal,
   Sliders
 } from 'lucide-react';

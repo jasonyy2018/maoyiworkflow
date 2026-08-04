@@ -18,7 +18,7 @@ export async function PATCH(request: Request, ctx: RouteCtx) {
     const { id } = await ctx.params;
     const body = await request.json();
 
-    const data: Record<string, unknown> = {};
+    const data: any = {};
     const scalar = [
       'platform', 'title', 'content', 'mediaType', 'mediaUrl', 'status', 'aiSource',
     ];
