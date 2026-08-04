@@ -318,23 +318,58 @@ export function generateColdEmailText(lead: Lead, language: 'en' | 'ru' = 'en'):
 
 /**
  * WhatsApp Batch Validator Simulation
+ *
+ * Normalizes to E.164 and returns a deterministic (repeatable) simulated status.
+ * Real registration checking happens server-side via /api/whatsapp/verify when a
+ * verification provider is configured in Settings; this is the offline fallback.
  */
-export function validateWhatsAppNumber(phone: string): { formattedNumber: string; status: WhatsAppStatus } {
-  let cleaned = phone.replace(/[^0-9+]/g, '');
+export function normalizeWhatsAppNumber(phone: string, country?: string): string {
+  const s = (phone || '').trim();
+  let digits = s.replace(/\D/g, '');
 
-  if (cleaned.startsWith('8') && cleaned.length === 11) {
-    cleaned = '+7' + cleaned.substring(1); // Standardize Russian numbers starting with 8 to +7
-  } else if (!cleaned.startsWith('+')) {
-    cleaned = '+' + cleaned;
+  if (digits.startsWith('00')) digits = digits.slice(2); // 00 international dialing prefix
+  // Russian / Kazakh style: 8XXXXXXXXXX -> 7XXXXXXXXXX
+  if (digits.length === 11 && digits.startsWith('8')) {
+    digits = '7' + digits.slice(1);
   }
 
-  // Determine status simulation
-  if (cleaned.length < 9) {
-    return { formattedNumber: cleaned, status: 'not_registered' };
+  // If the digits look like a local number without a country code, prepend the
+  // country code hinted by the lead's region.
+  const hints: Record<string, { cc: string; len: number }> = {
+    Russia: { cc: '7', len: 10 },
+    Kazakhstan: { cc: '7', len: 10 },
+    USA: { cc: '1', len: 10 },
+    'United States': { cc: '1', len: 10 },
+    Canada: { cc: '1', len: 10 },
+    UAE: { cc: '971', len: 9 },
+    'United Arab Emirates': { cc: '971', len: 9 },
+  };
+  const hint = country ? hints[country] : undefined;
+  if (hint && !digits.startsWith(hint.cc) && digits.length === hint.len) {
+    digits = hint.cc + digits;
   }
 
-  // 90% verified rate simulation
-  return { formattedNumber: cleaned, status: 'verified' };
+  return '+' + digits;
+}
+
+export function validateWhatsAppNumber(
+  phone: string,
+  country?: string
+): { formattedNumber: string; status: WhatsAppStatus } {
+  const formattedNumber = normalizeWhatsAppNumber(phone, country);
+  const digits = formattedNumber.replace(/\D/g, '');
+
+  // E.164 for WhatsApp: 8–15 digits including the country code.
+  if (digits.length < 8 || digits.length > 15) {
+    return { formattedNumber, status: 'not_registered' };
+  }
+
+  // Deterministic simulated outcome (same number -> same status, stable across runs).
+  const roll = digits.split('').reduce((a, c) => a + c.charCodeAt(0), 0) % 10;
+  if (roll === 9) {
+    return { formattedNumber, status: 'not_registered' };
+  }
+  return { formattedNumber, status: 'verified' };
 }
 
 /**

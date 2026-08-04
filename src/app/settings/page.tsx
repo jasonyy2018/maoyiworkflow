@@ -6,6 +6,7 @@ import {
   Settings,
   Globe,
   Mail,
+  MessageSquare,
   Save,
   CheckCircle2,
   Cpu,
@@ -23,6 +24,8 @@ export default function SettingsPage() {
   const [smtpServer, setSmtpServer] = useState('smtp.queeny-seals.com');
   const [smtpUser, setSmtpUser] = useState('export@queeny-seals.com');
   const [gmapkdevUrl, setGmapkdevUrl] = useState('http://localhost:3001/api/leads/search');
+  const [waVerifyUrl, setWaVerifyUrl] = useState('');
+  const [waVerifyToken, setWaVerifyToken] = useState('');
   const [customPrompt, setCustomPrompt] = useState(
     `角色：你是一名专精“机械密封件 (Mechanical Seals)”海外 B2B 市场营销的高级 AI 专家。\n使命：针对 Burgmann、John Crane、AESSEAL 等原厂品牌提供 1:1 无缝替代（ Drop-in Replacement），突出 40-50% 成本降低与 7-14 天快速交期痛点。`
   );
@@ -43,6 +46,8 @@ export default function SettingsPage() {
           if (data.smtpServer) setSmtpServer(data.smtpServer);
           if (data.smtpUser) setSmtpUser(data.smtpUser);
           if (data.customPrompt) setCustomPrompt(data.customPrompt);
+          if (data.waVerifyUrl) setWaVerifyUrl(data.waVerifyUrl);
+          if (data.waVerifyToken) setWaVerifyToken(data.waVerifyToken);
           return;
         }
       } catch (e) {
@@ -61,6 +66,8 @@ export default function SettingsPage() {
           if (parsed.smtpServer) setSmtpServer(parsed.smtpServer);
           if (parsed.smtpUser) setSmtpUser(parsed.smtpUser);
           if (parsed.customPrompt) setCustomPrompt(parsed.customPrompt);
+          if (parsed.waVerifyUrl) setWaVerifyUrl(parsed.waVerifyUrl);
+          if (parsed.waVerifyToken) setWaVerifyToken(parsed.waVerifyToken);
         }
       } catch (e) {
         console.error('Failed to parse settings from localStorage', e);
@@ -77,6 +84,8 @@ export default function SettingsPage() {
       customModelName,
       customBaseUrl,
       gmapkdevUrl,
+      waVerifyUrl,
+      waVerifyToken,
       smtpServer,
       smtpUser,
       customPrompt,
@@ -231,6 +240,55 @@ export default function SettingsPage() {
               系统抓取模块 (<code className="text-cyan-300">/scraper</code>) 将通过此 HTTP REST API 网络接口（如 <code className="text-cyan-300">http://localhost:3001/api/leads/search</code> 或线上域名 <code className="text-cyan-300">https://your-domain.com/api/leads/search</code>）远程调用 Google Maps & Gemini AI 拓客引擎。
             </p>
           </div>
+        </div>
+
+        {/* Card 2.75: WhatsApp Registration Verification API */}
+        <div className="md:col-span-2 rounded-2xl bg-slate-900/80 p-6 border border-slate-800 space-y-3 shadow-xl">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+            <h3 className="text-sm font-bold text-white flex items-center space-x-2">
+              <MessageSquare className="h-4 w-4 text-emerald-400" />
+              <span>WhatsApp 注册校验 API（可选，用于实时验证号码是否已注册）</span>
+            </h3>
+            <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px] font-mono border border-emerald-500/20">
+              Quality Check Service
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+            <div>
+              <label className="block text-slate-300 font-semibold mb-1">校验服务 Endpoint 地址</label>
+              <input
+                type="text"
+                value={waVerifyUrl}
+                onChange={(e) => setWaVerifyUrl(e.target.value)}
+                placeholder="https://your-provider.com/api/check (可空)"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-cyan-300 font-mono focus:outline-none focus:border-emerald-500"
+              />
+              <p className="text-[10px] text-slate-500 mt-1">
+                填写后“模块五 批量验证”会调用此端点做<b>真实注册校验</b>；留空则使用内置模拟。
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-slate-300 font-semibold mb-1">校验服务 Token（Bearer）</label>
+              <input
+                type="password"
+                value={waVerifyToken}
+                onChange={(e) => setWaVerifyToken(e.target.value)}
+                placeholder="服务商提供的密钥 (可空)"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-200 font-mono focus:outline-none focus:border-emerald-500"
+              />
+              <p className="text-[10px] text-slate-500 mt-1">
+                请求会以 <code className="text-emerald-300">Authorization: Bearer &lt;Token&gt;</code> 发送。
+              </p>
+            </div>
+          </div>
+
+          <p className="text-[11px] text-slate-400 leading-relaxed">
+            系统会向该端点 POST <code className="text-cyan-300">{'{'}&quot;phone&quot;: &quot;+7...&quot;, &quot;number&quot;: &quot;+7...&quot;, &quot;country&quot;: &quot;Russia&quot;{ '}'}</code>，
+            识别 <code className="text-emerald-300">registered / exists / valid / wa / ok</code> 等字段判定注册状态；
+            若账号注册为『已注册』，模块五全流程仍可一键触达。未配置时自动回退到内置模拟，不影响使用。
+          </p>
         </div>
 
         {/* Card 2: Mechanical Seals Customized System Prompt */}

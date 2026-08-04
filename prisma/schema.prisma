@@ -48,6 +48,8 @@ model SystemSetting {
   smtpServer      String?  @default("smtp.queeny-seals.com")
   smtpUser        String?  @default("export@queeny-seals.com")
   customPrompt    String?
+  waVerifyUrl     String?
+  waVerifyToken   String?
   updatedAt       DateTime @updatedAt
 }
 

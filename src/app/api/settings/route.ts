@@ -9,8 +9,8 @@ export async function GET() {
     }
 
     await prisma.$executeRaw`
-      INSERT INTO SystemSetting (id, model, apiKey, customModelName, customBaseUrl, gmapkdevUrl, smtpServer, smtpUser, customPrompt, updatedAt)
-      VALUES ('default', 'custom-openai', '', 'gpt-4o-mini', 'https://api.openai.com/v1', 'http://localhost:3001/api/leads/search', 'smtp.queeny-seals.com', 'export@queeny-seals.com', '角色：你是一名专精“机械密封件 (Mechanical Seals)”海外 B2B 市场营销的高级 AI 专家。', CURRENT_TIMESTAMP)
+      INSERT INTO SystemSetting (id, model, apiKey, customModelName, customBaseUrl, gmapkdevUrl, smtpServer, smtpUser, customPrompt, waVerifyUrl, waVerifyToken, updatedAt)
+      VALUES ('default', 'custom-openai', '', 'gpt-4o-mini', 'https://api.openai.com/v1', 'http://localhost:3001/api/leads/search', 'smtp.queeny-seals.com', 'export@queeny-seals.com', '角色：你是一名专精“机械密封件 (Mechanical Seals)”海外 B2B 市场营销的高级 AI 专家。', '', '', CURRENT_TIMESTAMP)
     `;
 
     const newRows: any[] = await prisma.$queryRaw`SELECT * FROM SystemSetting WHERE id = 'default'`;
@@ -23,6 +23,8 @@ export async function GET() {
       customModelName: 'gpt-4o-mini',
       customBaseUrl: 'https://api.openai.com/v1',
       gmapkdevUrl: 'http://localhost:3001/api/leads/search',
+      waVerifyUrl: '',
+      waVerifyToken: '',
     });
   }
 }
@@ -38,10 +40,12 @@ export async function PUT(request: Request) {
     const smtpServer = body.smtpServer || 'smtp.queeny-seals.com';
     const smtpUser = body.smtpUser || 'export@queeny-seals.com';
     const customPrompt = body.customPrompt || '';
+    const waVerifyUrl = body.waVerifyUrl || '';
+    const waVerifyToken = body.waVerifyToken || '';
 
     await prisma.$executeRaw`
-      INSERT INTO SystemSetting (id, model, apiKey, customModelName, customBaseUrl, gmapkdevUrl, smtpServer, smtpUser, customPrompt, updatedAt)
-      VALUES ('default', ${model}, ${apiKey}, ${customModelName}, ${customBaseUrl}, ${gmapkdevUrl}, ${smtpServer}, ${smtpUser}, ${customPrompt}, CURRENT_TIMESTAMP)
+      INSERT INTO SystemSetting (id, model, apiKey, customModelName, customBaseUrl, gmapkdevUrl, smtpServer, smtpUser, customPrompt, waVerifyUrl, waVerifyToken, updatedAt)
+      VALUES ('default', ${model}, ${apiKey}, ${customModelName}, ${customBaseUrl}, ${gmapkdevUrl}, ${smtpServer}, ${smtpUser}, ${customPrompt}, ${waVerifyUrl}, ${waVerifyToken}, CURRENT_TIMESTAMP)
       ON CONFLICT(id) DO UPDATE SET
         model = ${model},
         apiKey = ${apiKey},
@@ -51,6 +55,8 @@ export async function PUT(request: Request) {
         smtpServer = ${smtpServer},
         smtpUser = ${smtpUser},
         customPrompt = ${customPrompt},
+        waVerifyUrl = ${waVerifyUrl},
+        waVerifyToken = ${waVerifyToken},
         updatedAt = CURRENT_TIMESTAMP
     `;
 
@@ -65,6 +71,8 @@ export async function PUT(request: Request) {
       smtpServer,
       smtpUser,
       customPrompt,
+      waVerifyUrl,
+      waVerifyToken,
     });
   } catch (error) {
     console.error('Error saving settings to SQLite:', error);

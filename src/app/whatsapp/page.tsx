@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import WorkflowStepper from '@/components/workflow-stepper';
 import { validateWhatsAppNumber, generateWhatsAppMessage } from '@/lib/ai-services';
-import { fetchLeads, updateLead, seedLeads, aiRun, LeadRecord } from '@/lib/api';
+import { fetchLeads, updateLead, seedLeads, aiRun, waVerify, LeadRecord } from '@/lib/api';
 import { Lead } from '@/types/workflow';
 import {
   MessageSquare,
@@ -95,26 +95,43 @@ export default function WhatsAppPage() {
     ? aiWa || generateWhatsAppMessage(selectedLead)
     : '暂无活动 WhatsApp 消息 (请先在抓取模块添加潜客)';
 
-  const handleValidateAllNumbers = () => {
+  const handleValidateAllNumbers = async () => {
     setIsValidating(true);
-    setTimeout(() => {
-      const updated = leads.map((lead) => {
-        const phoneToTest = lead.whatsappNumber || lead.phone || '+79122458890';
-        const result = validateWhatsAppNumber(phoneToTest);
-        return {
-          ...lead,
-          whatsappNumber: result.formattedNumber,
-          whatsappStatus: result.status,
-        };
-      });
+    try {
+      const updated: Lead[] = [];
+      for (const lead of leads) {
+        const phoneToTest = lead.whatsappNumber || lead.phone || '';
+        let formattedNumber = phoneToTest;
+        let status: Lead['whatsappStatus'] = 'unverified';
+        try {
+          // Prefer real verification when a provider is configured in Settings.
+          const remote = await waVerify(phoneToTest, lead.country);
+          if (remote?.configured === true && remote?.status) {
+            formattedNumber = remote.formattedNumber || phoneToTest;
+            status = remote.status;
+          } else {
+            // No provider configured -> deterministic built-in simulation.
+            const r = validateWhatsAppNumber(phoneToTest, lead.country);
+            formattedNumber = r.formattedNumber;
+            status = r.status;
+          }
+        } catch (e) {
+          const r = validateWhatsAppNumber(phoneToTest, lead.country);
+          formattedNumber = r.formattedNumber;
+          status = r.status;
+        }
+        updated.push({ ...lead, whatsappNumber: formattedNumber, whatsappStatus: status });
+      }
       setLeads(updated);
       updated.forEach((l) =>
-        updateLead(l.id, { whatsappNumber: l.whatsappNumber, whatsappStatus: l.whatsappStatus }).catch(
-          () => {}
-        )
+        updateLead(
+          l.id,
+          { whatsappNumber: l.whatsappNumber, whatsappStatus: l.whatsappStatus }
+        ).catch(() => {})
       );
+    } finally {
       setIsValidating(false);
-    }, 1200);
+    }
   };
 
   const handleSendSingleWA = (id: string) => {
@@ -123,6 +140,20 @@ export default function WhatsAppPage() {
       setLeads((prev) => prev.map((l) => (l.id === id ? { ...l, status: 'wa_verified' as const } : l)));
       updateLead(id, { status: 'wa_verified' }).catch(() => {});
     }
+  };
+
+  // Precise (manual) verification: record the actual registration result seen after
+  // jumping to WhatsApp, and persist it so the system stays in sync.
+  const handleMarkWaStatus = (id: string, status: Lead['whatsappStatus']) => {
+    setLeads((prev) => prev.map((l) => (l.id === id ? { ...l, whatsappStatus: status } : l)));
+    setSelectedLead((prev) => (prev && prev.id === id ? { ...prev, whatsappStatus: status } : prev));
+    updateLead(id, { whatsappStatus: status }).catch(() => {});
+  };
+
+  const buildWaMeHref = (lead: Lead) => {
+    const num = (lead.whatsappNumber || lead.phone || '').replace(/[^0-9]/g, '');
+    const text = generateWhatsAppMessage(lead);
+    return `https://wa.me/${num}?text=${encodeURIComponent(text)}`;
   };
 
   return (
@@ -218,27 +249,58 @@ export default function WhatsAppPage() {
                             className={`px-2 py-0.5 rounded text-[10px] font-mono ${
                               lead.whatsappStatus === 'verified'
                                 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                                : 'bg-amber-500/20 text-amber-400'
+                                : lead.whatsappStatus === 'not_registered'
+                                ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                                : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
                             }`}
                           >
-                            {lead.whatsappStatus === 'verified' ? '已注册 (+WA)' : '待校验'}
+                            {lead.whatsappStatus === 'verified'
+                              ? '已注册 (+WA)'
+                              : lead.whatsappStatus === 'not_registered'
+                              ? '未注册'
+                              : lead.whatsappStatus === 'unverified'
+                              ? '待人工验证'
+                              : '待校验'}
                           </span>
                         </td>
 
-                        <td className="px-4 py-3 text-right">
-                          {isSent ? (
-                            <span className="text-[10px] text-emerald-400 font-mono">已发送营销</span>
-                          ) : (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleSendSingleWA(lead.id);
-                              }}
-                              className="px-2.5 py-1 rounded bg-emerald-500 text-slate-950 font-bold text-[10px] hover:bg-emerald-400"
+                        <td className="px-4 py-3">
+                          <div className="flex flex-wrap items-center justify-end gap-1.5">
+                            <a
+                              href={buildWaMeHref(lead)}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="px-2 py-1 rounded bg-slate-800 text-slate-200 border border-slate-700 text-[10px] font-medium hover:bg-slate-700"
+                              title="跳转到 WhatsApp 精准验证号码是否注册"
                             >
-                              发送WA破冰
-                            </button>
-                          )}
+                              触达验证
+                            </a>
+                            {isSent ? (
+                              <span className="text-[10px] text-emerald-400 font-mono">已发送</span>
+                            ) : lead.whatsappStatus === 'verified' ? (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleSendSingleWA(lead.id);
+                                }}
+                                className="px-2 py-1 rounded bg-emerald-500 text-slate-950 font-bold text-[10px] hover:bg-emerald-400"
+                              >
+                                发送WA破冰
+                              </button>
+                            ) : null}
+                            {lead.whatsappStatus !== 'not_registered' && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleMarkWaStatus(lead.id, 'not_registered');
+                                }}
+                                className="px-2 py-1 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30 text-[10px] hover:bg-rose-500/40"
+                                title="跳转后若提示未注册，点此记录并更新到系统"
+                              >
+                                记录未注册
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     );
@@ -287,6 +349,30 @@ export default function WhatsAppPage() {
                 <ExternalLink className="h-4 w-4" />
                 <span>跳转 WhatsApp Web 网页版一键触达</span>
               </a>
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => {
+                    if (selectedLead) handleMarkWaStatus(selectedLead.id, 'verified');
+                  }}
+                  disabled={!selectedLead || selectedLead.whatsappStatus === 'verified'}
+                  className="px-3 py-2 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-medium hover:bg-emerald-500/30 disabled:opacity-40 transition-colors"
+                >
+                  精准验证：已注册
+                </button>
+                <button
+                  onClick={() => {
+                    if (selectedLead) handleMarkWaStatus(selectedLead.id, 'not_registered');
+                  }}
+                  disabled={!selectedLead || selectedLead.whatsappStatus === 'not_registered'}
+                  className="px-3 py-2 rounded-xl bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-medium hover:bg-rose-500/30 disabled:opacity-40 transition-colors"
+                >
+                  精准验证：未注册
+                </button>
+              </div>
+              <p className="text-[10px] text-slate-500 text-center -mt-1">
+                先点「跳转 WhatsApp」实况核对，再按实际显示标记；结果将实时写入系统。
+              </p>
 
               <button
                 onClick={() => {

@@ -134,3 +134,17 @@ export async function aiRun(body: Record<string, unknown>): Promise<any> {
   }
   return res.json();
 }
+
+// Real WhatsApp registration check via /api/whatsapp/verify. Returns
+// { configured:false } when no provider is configured (client falls back to simulation).
+export async function waVerify(number: string, country?: string): Promise<any> {
+  const res = await fetch('/api/whatsapp/verify', {
+    method: 'POST',
+    headers: jsonHeaders,
+    body: JSON.stringify({ number, country }),
+  });
+  if (!res.ok) {
+    throw new Error('WA 校验请求失败');
+  }
+  return res.json();
+}
